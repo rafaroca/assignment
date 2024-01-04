@@ -2,7 +2,7 @@
 
 ## Introduction
 This take-home assignment is designed to give you an opportunity to demonstrate your skills and experience in
-building a web application. We expect you to spend 2-4 hours on this assignment. If you find yourself spending more time
+building a web application. We expect you to spend 3-4 hours on this assignment. If you find yourself spending more time
 than that, please stop and submit what you have. We are not looking for a complete solution, but rather a demonstration
 of your skills and experience.
 
@@ -15,26 +15,29 @@ endpoint. For an overview of the expected capabilities, see the [Expected Capabi
 below.
 
 ## OTLP Logs HTTP Endpoint
-The OTLP logs HTTP endpoint is available at https://otlp-logs-endpoint.herokuapp.com/v1/logs. The endpoint returns a
-data structure compatible with 
+The OTLP logs HTTP endpoint is available at https://take-home-assignment-otlp-logs-api.vercel.app/api/logs. The endpoint
+returns an OTLP logs data structure.
 
 ## Expected Capabilities
-Take this piece of OTLP logs JSON and render the logs in a list with columns
-Severity
-Time
-Body
-When clicking a log record, expand the row and show all attributes associated with the log record
-Render a histogram visualizing the distribution of log records
-X-Axis: Time
-Y-Axis: Count
-Technology Constraints
-Use React and Next.js with the app router.
-Use any additional libraries you want and need.
-Notes
+ - Retrieve the list of log records from the OTLP logs HTTP endpoint mentioned above (at runtime).
+ - Render the list of log records in a table with the following columns:
+   - Severity
+   - Time
+   - Body
+ - When clicking a log record, expand the row and show all attributes associated with the log record.
+ - Render a histogram visualizing the distribution of log records.
+   - X-Axis: Time
+   - Y-Axis: Count
+
+## Technology Constraints
+ - Use React and Next.js with the app router.
+ - Use any additional libraries you want and need.
+
+## Notes
 As this assignment is for the role of a Senior Product Engineer, we expect you to pay some attention to the experience and design of the solution. For example:
-Structure consistent with established solutions in the observability domain
-Consistent terminology usage
-Some styling/visuals
+ - Structure consistent with established solutions in the observability domain
+ - Consistent terminology usage
+ - Some styling/visuals
 
 ## References
 

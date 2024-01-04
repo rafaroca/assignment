@@ -18,6 +18,12 @@ below.
 The OTLP logs HTTP endpoint is available at https://take-home-assignment-otlp-logs-api.vercel.app/api/logs. The endpoint
 returns an OTLP logs data structure. You will use this endpoint as a data source within the assignment.
 
+You will most likely need TypeScript types for the OTLP logs data structure:
+
+```typescript
+import {IExportLogsServiceRequest, IResourceLogs, ILogRecord} from "@opentelemetry/otlp-transformer";
+```
+
 ## Expected Capabilities
  - Retrieve the list of log records from the OTLP logs HTTP endpoint mentioned above (at runtime).
  - Render the list of log records in a table with the following columns:
@@ -30,14 +36,16 @@ returns an OTLP logs data structure. You will use this endpoint as a data source
    - Y-Axis: Count
 
 ## Technology Constraints
- - Use React and Next.js with the app router.
+ - Use React, TypeScript and Next.js with the app router.
  - Use any additional libraries you want and need.
 
 ## Notes
-As this assignment is for the role of a Senior Product Engineer, we expect you to pay some attention to the experience and design of the solution. For example:
- - Structure consistent with established solutions in the observability domain
- - Consistent terminology usage
- - Some styling/visuals
+ - As this assignment is for the role of a Senior Product Engineer, we expect you to pay some attention to the experience and design of the solution. For example:
+   - Structure consistent with established solutions in the observability domain
+   - Consistent terminology usage
+   - Some styling/visuals
+ - You are not meant to extend the Next.js app residing within this repository. Please create a new Next.js app in a 
+   separate repository.
 
 ## References
 

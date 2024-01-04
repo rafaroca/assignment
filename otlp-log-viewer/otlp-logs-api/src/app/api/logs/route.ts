@@ -1,6 +1,5 @@
 import {faker} from '@faker-js/faker';
-import {IExportLogsServiceRequest, IResourceLogs} from "@opentelemetry/otlp-transformer";
-import {ILogRecord} from "@opentelemetry/otlp-transformer/build/src/logs/types";
+import {IExportLogsServiceRequest, IResourceLogs, ILogRecord} from "@opentelemetry/otlp-transformer";
 
 export const runtime = 'edge'
 

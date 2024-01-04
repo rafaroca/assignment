@@ -6,8 +6,8 @@ building a web application. We expect you to spend 3-4 hours on this assignment.
 than that, please stop and submit what you have. We are not looking for a complete solution, but rather a demonstration
 of your skills and experience.
 
-To submit your solution, please create a public GitHub repository and send us the link. Please include a README.md file
-with instructions on how to run your application.
+To submit your solution, please create a public GitHub repository and send us the link. Please include a `README.md` file
+with instructions on how to run your application. Bonus points for a deployment to Vercel.
 
 ## Overview
 The goal of this assignment is to build a simple web application that renders a list of [log records](https://opentelemetry.io/docs/concepts/signals/logs/) from an OTLP logs
@@ -16,7 +16,7 @@ below.
 
 ## OTLP Logs HTTP Endpoint
 The OTLP logs HTTP endpoint is available at https://take-home-assignment-otlp-logs-api.vercel.app/api/logs. The endpoint
-returns an OTLP logs data structure.
+returns an OTLP logs data structure. You will use this endpoint as a data source within the assignment.
 
 ## Expected Capabilities
  - Retrieve the list of log records from the OTLP logs HTTP endpoint mentioned above (at runtime).

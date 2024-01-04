@@ -121,12 +121,6 @@ function generatedMockedData(): IExportLogsServiceRequest {
         ]
     } satisfies IResourceLogs));
 
-    faker.date.betweens({
-        from: new Date('2021-01-01'),
-        to: new Date('2021-01-31'),
-        count: 50
-    })
-
     return {
         resourceLogs
     };

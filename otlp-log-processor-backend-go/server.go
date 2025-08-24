@@ -25,16 +25,23 @@ var (
 const name = "dash0.com/otlp-log-processor-backend"
 
 var (
-	tracer              = otel.Tracer(name)
-	meter               = otel.Meter(name)
-	logger              = otelslog.NewLogger(name)
-	logsReceivedCounter metric.Int64Counter
+	tracer                = otel.Tracer(name)
+	meter                 = otel.Meter(name)
+	logger                = otelslog.NewLogger(name)
+	logsReceivedCounter   metric.Int64Counter
+	resourceLogHitCounter metric.Int64Counter
 )
 
 func init() {
 	var err error
 	logsReceivedCounter, err = meter.Int64Counter("com.dash0.homeexercise.logs.received",
 		metric.WithDescription("The number of logs received by otlp-log-processor-backend"),
+		metric.WithUnit("{log}"))
+	if err != nil {
+		panic(err)
+	}
+	resourceLogHitCounter, err = meter.Int64Counter("com.dash0.homeexercise.logs.resourcehit",
+		metric.WithDescription("The number of hits of the attibute match from the resource"),
 		metric.WithUnit("{log}"))
 	if err != nil {
 		panic(err)

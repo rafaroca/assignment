@@ -23,6 +23,7 @@ var (
 	maxReceiveMessageSize = flag.Int("maxReceiveMessageSize", 16777216, "The max message size in bytes the server can receive")
 	attributeKey          = flag.String("attributeKey", "service.name", "The attributeKey to count")
 	durationWindow        = flag.Duration("duration", time.Second*10, "The duration between the output of the stats of the attributeKey")
+	bufferSize            = flag.Uint("bufferSize", 1000, "The size of the buffer for log ingestion")
 )
 
 const name = "dash0.com/otlp-log-processor-backend"
@@ -59,6 +60,7 @@ func main() {
 
 func run() (err error) {
 	slog.SetDefault(logger)
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 	logger.Info("Starting application")
 
 	// Set up OpenTelemetry.
@@ -85,7 +87,7 @@ func run() (err error) {
 		grpc.MaxRecvMsgSize(*maxReceiveMessageSize),
 		grpc.Creds(insecure.NewCredentials()),
 	)
-	collogspb.RegisterLogsServiceServer(grpcServer, newServer(*listenAddr, *attributeKey, *durationWindow))
+	collogspb.RegisterLogsServiceServer(grpcServer, newServer(*listenAddr, *attributeKey, *durationWindow, *bufferSize))
 
 	slog.Debug("Starting gRPC server", "attributeKey", *attributeKey, "durationWindow", durationWindow)
 

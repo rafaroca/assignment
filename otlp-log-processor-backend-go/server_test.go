@@ -70,7 +70,7 @@ func server() (collogspb.LogsServiceClient, func()) {
 	lis := bufconn.Listen(buffer)
 
 	baseServer := grpc.NewServer()
-	collogspb.RegisterLogsServiceServer(baseServer, newServer(addr, "service.name", time.Second*10))
+	collogspb.RegisterLogsServiceServer(baseServer, newServer(addr, "service.name", time.Second*10, 1000))
 	go func() {
 		if err := baseServer.Serve(lis); err != nil {
 			log.Printf("error serving server: %v", err)

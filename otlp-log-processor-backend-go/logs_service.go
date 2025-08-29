@@ -3,24 +3,26 @@ package main
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 )
 
-// TODO: make attributeKey settable via env
-const attributeKey = "service.name"
-
 type dash0LogsServiceServer struct {
-	addr     string
-	logStats map[string]uint64
+	addr           string
+	attributeKey   string
+	durationWindow time.Duration
+	logStats       map[string]uint64
 
 	collogspb.UnimplementedLogsServiceServer
 }
 
-func newServer(addr string) collogspb.LogsServiceServer {
+func newServer(addr string, attributeKey string, durationWindow time.Duration) collogspb.LogsServiceServer {
 	s := &dash0LogsServiceServer{
-		addr:     addr,
-		logStats: make(map[string]uint64),
+		addr:           addr,
+		attributeKey:   attributeKey,
+		durationWindow: durationWindow,
+		logStats:       make(map[string]uint64),
 	}
 	return s
 }
@@ -34,16 +36,16 @@ func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.
 	// The ResourceLogs typically only contain a single entry, but for propagated logs they might be bundled
 	for _, logs := range request.ResourceLogs {
 		for _, attrs := range logs.Resource.Attributes {
-			if attrs.Key == attributeKey {
+			if attrs.Key == l.attributeKey {
+				// TODO: is this only ever strings? Could be different types as well, so care for these
 				l.logStats[attrs.Value.GetStringValue()] += 1
 				resourceLogHitCounter.Add(ctx, 1)
-				// TODO: is this only ever strings? Could be different types as well
 			}
 		}
 		for _, scopes := range logs.ScopeLogs {
 			for _, logRecords := range scopes.LogRecords {
 				for _, logRecordAttribute := range logRecords.Attributes {
-					if logRecordAttribute.Key == attributeKey {
+					if logRecordAttribute.Key == l.attributeKey {
 						l.logStats[logRecordAttribute.Value.GetStringValue()] += 1
 					}
 				}

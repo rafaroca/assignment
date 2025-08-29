@@ -7,6 +7,7 @@ import (
 	"log"
 	"log/slog"
 	"net"
+	"time"
 
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
@@ -20,6 +21,8 @@ import (
 var (
 	listenAddr            = flag.String("listenAddr", "localhost:4317", "The listen address")
 	maxReceiveMessageSize = flag.Int("maxReceiveMessageSize", 16777216, "The max message size in bytes the server can receive")
+	attributeKey          = flag.String("attributeKey", "service.name", "The attributeKey to count")
+	durationWindow        = flag.Duration("duration", time.Second*10, "The duration between the output of the stats of the attributeKey")
 )
 
 const name = "dash0.com/otlp-log-processor-backend"
@@ -82,9 +85,9 @@ func run() (err error) {
 		grpc.MaxRecvMsgSize(*maxReceiveMessageSize),
 		grpc.Creds(insecure.NewCredentials()),
 	)
-	collogspb.RegisterLogsServiceServer(grpcServer, newServer(*listenAddr))
+	collogspb.RegisterLogsServiceServer(grpcServer, newServer(*listenAddr, *attributeKey, *durationWindow))
 
-	slog.Debug("Starting gRPC server")
+	slog.Debug("Starting gRPC server", "attributeKey", *attributeKey, "durationWindow", durationWindow)
 
 	return grpcServer.Serve(listener)
 }

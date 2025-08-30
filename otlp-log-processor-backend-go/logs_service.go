@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -12,60 +11,46 @@ import (
 )
 
 type dash0LogsServiceServer struct {
-	addr           string
-	attributeKey   string
-	durationWindow time.Duration
-	logIntake      chan string // TODO: change to <-chan string and extract processor to separate file
-	logStats       map[string]uint64
+	addr         string
+	attributeKey string
+	processor    *dash0LogsProcessor
+	logExport    chan<- string
 
 	collogspb.UnimplementedLogsServiceServer
 }
 
 func newServer(addr string, attributeKey string, durationWindow time.Duration, bufferSize uint) collogspb.LogsServiceServer {
-	s := &dash0LogsServiceServer{
-		addr:           addr,
-		attributeKey:   attributeKey,
+	logIntakeChannel := make(chan string, bufferSize)
+
+	processor := &dash0LogsProcessor{
 		durationWindow: durationWindow,
 		logStats:       make(map[string]uint64),
-		logIntake:      make(chan string, bufferSize),
+		logIntake:      logIntakeChannel,
 	}
 
-	go s.StartLogProcessing()
+	s := &dash0LogsServiceServer{
+		addr:         addr,
+		attributeKey: attributeKey,
+		processor:    processor,
+		logExport:    logIntakeChannel,
+	}
+
+	go processor.StartLogProcessing()
+
 	return s
 }
 
-func (l *dash0LogsServiceServer) StartLogProcessing() {
-	ticker := time.NewTicker(l.durationWindow).C
-
-	for {
-		select {
-		case <-ticker:
-			fmt.Println("Log stats:")
-			for logValue, count := range l.logStats {
-				fmt.Printf("%s - %d\n", logValue, count)
-			}
-		case logValue := <-l.logIntake:
-			if logValue == "" {
-				logValue = "unknown"
-			}
-
-			l.logStats[logValue]++
-		}
-	}
-}
-
 func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.ExportLogsServiceRequest) (*collogspb.ExportLogsServiceResponse, error) {
-	slog.DebugContext(ctx, "Received ExportLogsServiceRequest")
+	// slog.DebugContext(ctx, "Received ExportLogsServiceRequest")
 	logsReceivedCounter.Add(ctx, 1)
 
-	// The ResourceLogs typically only contain a single entry, but for propagated logs they might be bundled
 	if request.ResourceLogs != nil {
 		for _, resourceLog := range request.ResourceLogs {
 			if resourceLog.Resource != nil && resourceLog.Resource.Attributes != nil {
 				for _, attributes := range resourceLog.Resource.Attributes {
 					if attributes.Key == l.attributeKey {
 						resourceAttributeHitCounter.Add(ctx, 1)
-						l.logIntake <- extractStringValue(attributes.Value)
+						l.logExport <- extractStringValue(attributes.Value)
 					}
 				}
 			}
@@ -77,7 +62,7 @@ func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.
 								for _, logRecordAttribute := range logRecord.Attributes {
 									if logRecordAttribute.Key == l.attributeKey {
 										logAttributeHitCounter.Add(ctx, 1)
-										l.logIntake <- extractStringValue(logRecordAttribute.Value)
+										l.logExport <- extractStringValue(logRecordAttribute.Value)
 									}
 								}
 							}
@@ -87,7 +72,7 @@ func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.
 						for _, scopeAttribute := range scopeLog.Scope.Attributes {
 							if scopeAttribute.Key == l.attributeKey {
 								scopeAttributeHitCounter.Add(ctx, 1)
-								l.logIntake <- extractStringValue(scopeAttribute.Value)
+								l.logExport <- extractStringValue(scopeAttribute.Value)
 							}
 						}
 					}

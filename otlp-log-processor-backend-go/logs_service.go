@@ -44,21 +44,23 @@ func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.
 
 	// The ResourceLogs typically only contain a single entry, but for propagated logs they might be bundled
 	if request.ResourceLogs != nil {
-		for _, logs := range request.ResourceLogs {
-			if logs.Resource != nil && logs.Resource.Attributes != nil {
-				for _, attrs := range logs.Resource.Attributes {
-					if attrs.Key == l.attributeKey {
+		for _, resourceLog := range request.ResourceLogs {
+			if resourceLog.Resource != nil && resourceLog.Resource.Attributes != nil {
+				for _, attributes := range resourceLog.Resource.Attributes {
+					if attributes.Key == l.attributeKey {
 						resourceLogHitCounter.Add(ctx, 1)
-						l.logIntake <- extractStringValue(attrs.Value)
+						l.logIntake <- extractStringValue(attributes.Value)
 					}
 				}
 			}
-			if logs.ScopeLogs != nil {
-				for _, scopes := range logs.ScopeLogs {
-					for _, logRecords := range scopes.LogRecords {
-						for _, logRecordAttribute := range logRecords.Attributes {
-							if logRecordAttribute.Key == l.attributeKey {
-								l.logIntake <- extractStringValue(logRecordAttribute.Value)
+			if resourceLog.ScopeLogs != nil {
+				for _, scopeLog := range resourceLog.ScopeLogs {
+					if scopeLog.LogRecords != nil {
+						for _, logRecord := range scopeLog.LogRecords {
+							for _, logRecordAttribute := range logRecord.Attributes {
+								if logRecordAttribute.Key == l.attributeKey {
+									l.logIntake <- extractStringValue(logRecordAttribute.Value)
+								}
 							}
 						}
 					}
@@ -66,6 +68,8 @@ func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.
 			}
 		}
 	}
+
+	// TODO: Scan inside logs themselves
 	// TODO: if the key did not match, there is no "unknown" metric
 
 	return &collogspb.ExportLogsServiceResponse{}, nil

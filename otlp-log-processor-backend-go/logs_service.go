@@ -15,7 +15,7 @@ type dash0LogsServiceServer struct {
 	addr           string
 	attributeKey   string
 	durationWindow time.Duration
-	logIntake      chan string
+	logIntake      chan string // TODO: change to <-chan string and extract processor to separate file
 	logStats       map[string]uint64
 
 	collogspb.UnimplementedLogsServiceServer
@@ -26,16 +26,32 @@ func newServer(addr string, attributeKey string, durationWindow time.Duration, b
 		addr:           addr,
 		attributeKey:   attributeKey,
 		durationWindow: durationWindow,
+		logStats:       make(map[string]uint64),
 		logIntake:      make(chan string, bufferSize),
 	}
 
-	go s.Start()
+	go s.StartLogProcessing()
 	return s
 }
 
-func (l *dash0LogsServiceServer) Start() {
-	// Read and convert Values from logIntake channel
-	// Start summary output every durationWindow
+func (l *dash0LogsServiceServer) StartLogProcessing() {
+	ticker := time.NewTicker(l.durationWindow).C
+
+	for {
+		select {
+		case <-ticker:
+			fmt.Println("Log stats:")
+			for logValue, count := range l.logStats {
+				fmt.Printf("%s - %d\n", logValue, count)
+			}
+		case logValue := <-l.logIntake:
+			if logValue == "" {
+				logValue = "unknown"
+			}
+
+			l.logStats[logValue]++
+		}
+	}
 }
 
 func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.ExportLogsServiceRequest) (*collogspb.ExportLogsServiceResponse, error) {
@@ -58,15 +74,15 @@ func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.
 					if scopeLog.LogRecords != nil {
 						for _, logRecord := range scopeLog.LogRecords {
 							if logRecord.Attributes != nil {
-							for _, logRecordAttribute := range logRecord.Attributes {
-								if logRecordAttribute.Key == l.attributeKey {
+								for _, logRecordAttribute := range logRecord.Attributes {
+									if logRecordAttribute.Key == l.attributeKey {
 										logAttributeHitCounter.Add(ctx, 1)
-									l.logIntake <- extractStringValue(logRecordAttribute.Value)
+										l.logIntake <- extractStringValue(logRecordAttribute.Value)
+									}
 								}
 							}
 						}
 					}
-				}
 					if scopeLog.Scope != nil && scopeLog.Scope.Attributes != nil {
 						for _, scopeAttribute := range scopeLog.Scope.Attributes {
 							if scopeAttribute.Key == l.attributeKey {

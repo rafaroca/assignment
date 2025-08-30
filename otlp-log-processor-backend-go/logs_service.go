@@ -48,7 +48,7 @@ func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.
 			if resourceLog.Resource != nil && resourceLog.Resource.Attributes != nil {
 				for _, attributes := range resourceLog.Resource.Attributes {
 					if attributes.Key == l.attributeKey {
-						resourceLogHitCounter.Add(ctx, 1)
+						resourceAttributeHitCounter.Add(ctx, 1)
 						l.logIntake <- extractStringValue(attributes.Value)
 					}
 				}
@@ -57,11 +57,21 @@ func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.
 				for _, scopeLog := range resourceLog.ScopeLogs {
 					if scopeLog.LogRecords != nil {
 						for _, logRecord := range scopeLog.LogRecords {
+							if logRecord.Attributes != nil {
 							for _, logRecordAttribute := range logRecord.Attributes {
 								if logRecordAttribute.Key == l.attributeKey {
-									scopeLogHitCounter.Add(ctx, 1)
+										logAttributeHitCounter.Add(ctx, 1)
 									l.logIntake <- extractStringValue(logRecordAttribute.Value)
 								}
+							}
+						}
+					}
+				}
+					if scopeLog.Scope != nil && scopeLog.Scope.Attributes != nil {
+						for _, scopeAttribute := range scopeLog.Scope.Attributes {
+							if scopeAttribute.Key == l.attributeKey {
+								scopeAttributeHitCounter.Add(ctx, 1)
+								l.logIntake <- extractStringValue(scopeAttribute.Value)
 							}
 						}
 					}
@@ -69,9 +79,6 @@ func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.
 			}
 		}
 	}
-
-	// TODO: Scan inside logs themselves
-	// TODO: if the key did not match, there is no "unknown" metric
 
 	return &collogspb.ExportLogsServiceResponse{}, nil
 }

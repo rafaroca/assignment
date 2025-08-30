@@ -29,12 +29,13 @@ var (
 const name = "dash0.com/otlp-log-processor-backend"
 
 var (
-	tracer                = otel.Tracer(name)
-	meter                 = otel.Meter(name)
-	logger                = otelslog.NewLogger(name)
-	logsReceivedCounter   metric.Int64Counter
-	resourceLogHitCounter metric.Int64Counter
-	scopeLogHitCounter    metric.Int64Counter
+	tracer                      = otel.Tracer(name)
+	meter                       = otel.Meter(name)
+	logger                      = otelslog.NewLogger(name)
+	logsReceivedCounter         metric.Int64Counter
+	resourceAttributeHitCounter metric.Int64Counter
+	logAttributeHitCounter      metric.Int64Counter
+	scopeAttributeHitCounter    metric.Int64Counter
 )
 
 func init() {
@@ -45,8 +46,20 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	resourceLogHitCounter, err = meter.Int64Counter("com.dash0.homeexercise.logs.resourcehit",
-		metric.WithDescription("The number of hits of the attibute match from the resource"),
+	resourceAttributeHitCounter, err = meter.Int64Counter("com.dash0.homeexercise.logs.resourceattributehit",
+		metric.WithDescription("The number of hits of the attibute within the resource attributes"),
+		metric.WithUnit("{log}"))
+	if err != nil {
+		panic(err)
+	}
+	logAttributeHitCounter, err = meter.Int64Counter("com.dash0.homeexercise.logs.logattributehit",
+		metric.WithDescription("The number of hits of the attibute within the log records"),
+		metric.WithUnit("{log}"))
+	if err != nil {
+		panic(err)
+	}
+	scopeAttributeHitCounter, err = meter.Int64Counter("com.dash0.homeexercise.logs.scopeattributehit",
+		metric.WithDescription("The number of hits of the attibute within the scope"),
 		metric.WithUnit("{log}"))
 	if err != nil {
 		panic(err)

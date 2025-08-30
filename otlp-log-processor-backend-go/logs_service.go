@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -41,7 +42,7 @@ func newServer(addr string, attributeKey string, durationWindow time.Duration, b
 }
 
 func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.ExportLogsServiceRequest) (*collogspb.ExportLogsServiceResponse, error) {
-	// slog.DebugContext(ctx, "Received ExportLogsServiceRequest")
+	slog.DebugContext(ctx, "Received ExportLogsServiceRequest")
 	logsReceivedCounter.Add(ctx, 1)
 
 	if request.ResourceLogs != nil {

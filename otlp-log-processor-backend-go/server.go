@@ -34,6 +34,7 @@ var (
 	logger                = otelslog.NewLogger(name)
 	logsReceivedCounter   metric.Int64Counter
 	resourceLogHitCounter metric.Int64Counter
+	scopeLogHitCounter    metric.Int64Counter
 )
 
 func init() {

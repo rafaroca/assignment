@@ -59,6 +59,7 @@ func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.
 						for _, logRecord := range scopeLog.LogRecords {
 							for _, logRecordAttribute := range logRecord.Attributes {
 								if logRecordAttribute.Key == l.attributeKey {
+									scopeLogHitCounter.Add(ctx, 1)
 									l.logIntake <- extractStringValue(logRecordAttribute.Value)
 								}
 							}

@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	otelcommon "go.opentelemetry.io/proto/otlp/common/v1"
 	otellogs "go.opentelemetry.io/proto/otlp/logs/v1"
@@ -312,17 +314,8 @@ func TestLogsServiceServer_Export_LogRecordAttributes(t *testing.T) {
 	}
 }
 
-func TestLogsServiceServer_Export_ScopeAttributes(t *testing.T) {
-	ctx := context.Background()
-	
-	logExportChannel := make(chan string, 10)
-	server := &dash0LogsServiceServer{
-		addr:         "localhost:4317",
-		attributeKey: "service.name",
-		logExport:    logExportChannel,
-	}
-
-	request := &collogspb.ExportLogsServiceRequest{
+func createScopeAttributesRequest() *collogspb.ExportLogsServiceRequest {
+	return &collogspb.ExportLogsServiceRequest{
 		ResourceLogs: []*otellogs.ResourceLogs{
 			{
 				ScopeLogs: []*otellogs.ScopeLogs{
@@ -344,6 +337,19 @@ func TestLogsServiceServer_Export_ScopeAttributes(t *testing.T) {
 			},
 		},
 	}
+}
+
+func TestLogsServiceServer_Export_ScopeAttributes(t *testing.T) {
+	ctx := context.Background()
+
+	logExportChannel := make(chan string, 10)
+	server := &dash0LogsServiceServer{
+		addr:         "localhost:4317",
+		attributeKey: "service.name",
+		logExport:    logExportChannel,
+	}
+
+	request := createScopeAttributesRequest()
 
 	_, err := server.Export(ctx, request)
 	if err != nil {
@@ -357,5 +363,60 @@ func TestLogsServiceServer_Export_ScopeAttributes(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Error("Expected value to be sent to logExport channel but nothing was received")
+	}
+}
+
+func TestLogsServiceServer_Export_ScopeAttributes_CounterIncrement(t *testing.T) {
+	ctx := context.Background()
+
+	reader := metric.NewManualReader()
+	provider := metric.NewMeterProvider(metric.WithReader(reader))
+	meter := provider.Meter("test")
+
+	counter, err := meter.Int64Counter("com.dash0.homeexercise.logs.scopeattributehit")
+	if err != nil {
+		t.Fatalf("Failed to create counter: %v", err)
+	}
+
+	originalCounter := scopeAttributeHitCounter
+	scopeAttributeHitCounter = counter
+	defer func() { scopeAttributeHitCounter = originalCounter }()
+
+	logExportChannel := make(chan string, 10)
+	server := &dash0LogsServiceServer{
+		addr:         "localhost:4317",
+		attributeKey: "service.name",
+		logExport:    logExportChannel,
+	}
+
+	request := createScopeAttributesRequest()
+
+	_, err = server.Export(ctx, request)
+	if err != nil {
+		t.Errorf("Export failed: %v", err)
+	}
+
+	var resourceMetrics metricdata.ResourceMetrics
+	err = reader.Collect(ctx, &resourceMetrics)
+	if err != nil {
+		t.Errorf("Failed to collect metrics: %v", err)
+	}
+
+	found := false
+	for _, sm := range resourceMetrics.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			if m.Name == "com.dash0.homeexercise.logs.scopeattributehit" {
+				for _, dp := range m.Data.(metricdata.Sum[int64]).DataPoints {
+					if dp.Value == 1 {
+						found = true
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if !found {
+		t.Error("Expected scopeAttributeHitCounter to be incremented by 1")
 	}
 }

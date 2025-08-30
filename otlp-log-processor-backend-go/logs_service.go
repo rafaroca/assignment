@@ -43,18 +43,24 @@ func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.
 	logsReceivedCounter.Add(ctx, 1)
 
 	// The ResourceLogs typically only contain a single entry, but for propagated logs they might be bundled
-	for _, logs := range request.ResourceLogs {
-		for _, attrs := range logs.Resource.Attributes {
-			if attrs.Key == l.attributeKey {
-				resourceLogHitCounter.Add(ctx, 1)
-				l.logIntake <- extractStringValue(attrs.Value)
+	if request.ResourceLogs != nil {
+		for _, logs := range request.ResourceLogs {
+			if logs.Resource != nil && logs.Resource.Attributes != nil {
+				for _, attrs := range logs.Resource.Attributes {
+					if attrs.Key == l.attributeKey {
+						resourceLogHitCounter.Add(ctx, 1)
+						l.logIntake <- extractStringValue(attrs.Value)
+					}
+				}
 			}
-		}
-		for _, scopes := range logs.ScopeLogs {
-			for _, logRecords := range scopes.LogRecords {
-				for _, logRecordAttribute := range logRecords.Attributes {
-					if logRecordAttribute.Key == l.attributeKey {
-						l.logIntake <- extractStringValue(logRecordAttribute.Value)
+			if logs.ScopeLogs != nil {
+				for _, scopes := range logs.ScopeLogs {
+					for _, logRecords := range scopes.LogRecords {
+						for _, logRecordAttribute := range logRecords.Attributes {
+							if logRecordAttribute.Key == l.attributeKey {
+								l.logIntake <- extractStringValue(logRecordAttribute.Value)
+							}
+						}
 					}
 				}
 			}

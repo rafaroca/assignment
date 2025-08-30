@@ -60,7 +60,6 @@ func main() {
 
 func run() (err error) {
 	slog.SetDefault(logger)
-	slog.SetLogLoggerLevel(slog.LevelDebug)
 	logger.Info("Starting application")
 
 	// Set up OpenTelemetry.

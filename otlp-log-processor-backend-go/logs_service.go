@@ -2,18 +2,20 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
-	v1 "go.opentelemetry.io/proto/otlp/common/v1"
+	otelcommon "go.opentelemetry.io/proto/otlp/common/v1"
 )
 
 type dash0LogsServiceServer struct {
 	addr           string
 	attributeKey   string
 	durationWindow time.Duration
-	logIntake      chan v1.AnyValue
+	logIntake      chan string
 	logStats       map[string]uint64
 
 	collogspb.UnimplementedLogsServiceServer
@@ -24,7 +26,7 @@ func newServer(addr string, attributeKey string, durationWindow time.Duration, b
 		addr:           addr,
 		attributeKey:   attributeKey,
 		durationWindow: durationWindow,
-		logIntake:      make(chan v1.AnyValue, bufferSize),
+		logIntake:      make(chan string, bufferSize),
 	}
 
 	go s.Start()
@@ -45,14 +47,14 @@ func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.
 		for _, attrs := range logs.Resource.Attributes {
 			if attrs.Key == l.attributeKey {
 				resourceLogHitCounter.Add(ctx, 1)
-				l.logIntake <- *attrs.Value
+				l.logIntake <- extractStringValue(attrs.Value)
 			}
 		}
 		for _, scopes := range logs.ScopeLogs {
 			for _, logRecords := range scopes.LogRecords {
 				for _, logRecordAttribute := range logRecords.Attributes {
 					if logRecordAttribute.Key == l.attributeKey {
-						l.logStats[logRecordAttribute.Value.GetStringValue()] += 1
+						l.logIntake <- extractStringValue(logRecordAttribute.Value)
 					}
 				}
 			}
@@ -61,4 +63,34 @@ func (l *dash0LogsServiceServer) Export(ctx context.Context, request *collogspb.
 	// TODO: if the key did not match, there is no "unknown" metric
 
 	return &collogspb.ExportLogsServiceResponse{}, nil
+}
+
+func extractStringValue(value *otelcommon.AnyValue) (strValue string) {
+	switch v := value.GetValue().(type) {
+	case *otelcommon.AnyValue_StringValue:
+		strValue = v.StringValue
+	case *otelcommon.AnyValue_BoolValue:
+		strValue = fmt.Sprintf("%t", v.BoolValue)
+	case *otelcommon.AnyValue_IntValue:
+		strValue = fmt.Sprintf("%d", v.IntValue)
+	case *otelcommon.AnyValue_DoubleValue:
+		strValue = fmt.Sprintf("%f", v.DoubleValue)
+	case *otelcommon.AnyValue_ArrayValue:
+		strs := make([]string, len(v.ArrayValue.Values))
+		for i, elem := range v.ArrayValue.Values {
+			strs[i] = extractStringValue(elem)
+		}
+		strValue = "[" + strings.Join(strs, ",") + "]"
+	case *otelcommon.AnyValue_KvlistValue:
+		kvPairs := make([]string, len(v.KvlistValue.Values))
+		for i, kv := range v.KvlistValue.Values {
+			kvPairs[i] = kv.Key + ":" + extractStringValue(kv.Value)
+		}
+		strValue = "{" + strings.Join(kvPairs, ",") + "}"
+	case nil:
+		strValue = ""
+	default:
+		strValue = ""
+	}
+	return
 }

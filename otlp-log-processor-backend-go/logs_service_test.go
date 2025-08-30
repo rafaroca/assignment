@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
 	"testing"
+	"time"
 
+	collogspb "go.opentelemetry.io/proto/otlp/collector/logs/v1"
 	otelcommon "go.opentelemetry.io/proto/otlp/common/v1"
+	otellogs "go.opentelemetry.io/proto/otlp/logs/v1"
+	otelresource "go.opentelemetry.io/proto/otlp/resource/v1"
 )
 
 func TestExtractStringValue(t *testing.T) {
@@ -210,5 +215,147 @@ func TestExtractStringValue(t *testing.T) {
 				t.Errorf("Test %s failed: expected '%s', got '%s'", testName, test.expected, result)
 			}
 		})
+	}
+}
+
+func TestLogsServiceServer_Export_ResourceAttributes(t *testing.T) {
+	ctx := context.Background()
+
+	logExportChannel := make(chan string, 10)
+	server := &dash0LogsServiceServer{
+		addr:         "localhost:4317",
+		attributeKey: "service.name",
+		logExport:    logExportChannel,
+	}
+
+	request := &collogspb.ExportLogsServiceRequest{
+		ResourceLogs: []*otellogs.ResourceLogs{
+			{
+				Resource: &otelresource.Resource{
+					Attributes: []*otelcommon.KeyValue{
+						{
+							Key: "service.name",
+							Value: &otelcommon.AnyValue{
+								Value: &otelcommon.AnyValue_StringValue{
+									StringValue: "test-service",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := server.Export(ctx, request)
+	if err != nil {
+		t.Errorf("Export failed: %v", err)
+	}
+
+	select {
+	case exported := <-logExportChannel:
+		if exported != "test-service" {
+			t.Errorf("Expected 'test-service', got '%s'", exported)
+		}
+	case <-time.After(time.Second):
+		t.Error("Expected value to be sent to logExport channel but nothing was received")
+	}
+}
+
+func TestLogsServiceServer_Export_LogRecordAttributes(t *testing.T) {
+	ctx := context.Background()
+
+	logExportChannel := make(chan string, 10)
+	server := &dash0LogsServiceServer{
+		addr:         "localhost:4317",
+		attributeKey: "service.name",
+		logExport:    logExportChannel,
+	}
+
+	request := &collogspb.ExportLogsServiceRequest{
+		ResourceLogs: []*otellogs.ResourceLogs{
+			{
+				ScopeLogs: []*otellogs.ScopeLogs{
+					{
+						LogRecords: []*otellogs.LogRecord{
+							{
+								Attributes: []*otelcommon.KeyValue{
+									{
+										Key: "service.name",
+										Value: &otelcommon.AnyValue{
+											Value: &otelcommon.AnyValue_StringValue{
+												StringValue: "test-log-service",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := server.Export(ctx, request)
+	if err != nil {
+		t.Errorf("Export failed: %v", err)
+	}
+
+	select {
+	case exported := <-logExportChannel:
+		if exported != "test-log-service" {
+			t.Errorf("Expected 'test-log-service', got '%s'", exported)
+		}
+	case <-time.After(time.Second):
+		t.Error("Expected value to be sent to logExport channel but nothing was received")
+	}
+}
+
+func TestLogsServiceServer_Export_ScopeAttributes(t *testing.T) {
+	ctx := context.Background()
+	
+	logExportChannel := make(chan string, 10)
+	server := &dash0LogsServiceServer{
+		addr:         "localhost:4317",
+		attributeKey: "service.name",
+		logExport:    logExportChannel,
+	}
+
+	request := &collogspb.ExportLogsServiceRequest{
+		ResourceLogs: []*otellogs.ResourceLogs{
+			{
+				ScopeLogs: []*otellogs.ScopeLogs{
+					{
+						Scope: &otelcommon.InstrumentationScope{
+							Attributes: []*otelcommon.KeyValue{
+								{
+									Key: "service.name",
+									Value: &otelcommon.AnyValue{
+										Value: &otelcommon.AnyValue_StringValue{
+											StringValue: "test-scope-service",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := server.Export(ctx, request)
+	if err != nil {
+		t.Errorf("Export failed: %v", err)
+	}
+
+	select {
+	case exported := <-logExportChannel:
+		if exported != "test-scope-service" {
+			t.Errorf("Expected 'test-scope-service', got '%s'", exported)
+		}
+	case <-time.After(time.Second):
+		t.Error("Expected value to be sent to logExport channel but nothing was received")
 	}
 }

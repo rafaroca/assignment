@@ -1,69 +1,34 @@
-# OTLP Log Parser (Go)
+# OTLP Log Processor (Go)
 
-## Introduction
-This take-home assignment is designed to give you an opportunity to demonstrate your skills and experience in
-building a small backend application. We expect you to spend 3-4 hours on this assignment. If you find yourself spending more time
-than that, please stop and submit what you have. We are not looking for a complete solution, but rather a demonstration
-of your skills and experience.
+## Running
 
-To submit your solution, please create a public GitHub repository and send us the link. Please include a `README.md` file
-with instructions on how to run your application.
+Start the log processor with defaults by issuing `go run .`.
 
-## Overview
-The goal of this assignment is to build a simple backend application that receives [log records](https://opentelemetry.io/docs/concepts/signals/logs/)
-on a gRPC endpoint and processes them. Based on a **configurable attribute key and duration**, the application has to keep
-counts of the number of unique log records per distinct attribute value. And within each window (configurable duration) print /
-log these counts to stdout.
-Note that the configurable attribute may appear either on Resource, Scope or Log level.
+See the possible CLI arguments with `go run . --help`. Most importantly you can specify the attribute key with `-attributeKey <key>` and the duration window for the log output with `-duration <duration>`.
 
-Pseudo example:
-- "my log body 1" - {"foo":"bar", "baz":"qux"}
-- "my log body 2" - {"foo":"qux", "baz":"qux"}
-- "my log body 3" - {"baz":"qux"}
-- "my log body 4" - {"foo":"baz"}
-- "my log body 5" - {"foo":"baz", "baz":"qux"}
+Install the [telemetrygen tool](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/cmd/telemetrygen/README.md) with `go install github.com/open-telemetry/opentelemetry-collector-contrib/cmd/telemetrygen@latest`.
 
-For example for configured attribute key "foo" it should report:
-- "bar" - 1
-- "qux" - 1
-- "baz" - 2
-- unknown - 1
+Export 1 mio sample logs with `telemetrygen logs --otlp-insecure --logs 100000 --body '{"foo":"bar"}' --telemetry-attributes service.name=\"logattribute\" --workers 10` and check the output for "telemetrygen" and "logattribute".
+For ease of templating and viewing in the command line, the output is done via `fmt.Println`.
 
-Your solution should take into account high throughput, both in number of messages and the number of records per message.
+## Tests
 
-Feel free to use the existing scaffoling in this folder, for example by fleshing out the implementation of the `Export`
-method in `logs_service.go`. Of course, you can also change anything else as you see fit.
+The test suite runs with `go test`.
 
-## Technology Constraints
-- Your Go program should compile using standard Go SDK, and be compatible with Go 1.23.
-- Use any additional libraries you want and need.
+The tests check the output of the processor, the log export, the counter increase and the string conversion.
 
-## Notes
-- As this assignment is for the role of a Senior Product Engineer, we expect you to pay some attention to maintainability and operability of the solution. For example:
-  - Consistent terminology usage
-  - Validation of the behaviour
-  - Include signals / events to help in debugging
-- Assume that this application will be deployed to production. Build it accordingly.
+## Structure
 
-## Usage
+I expanded the scaffolding of the `logs_service.go` to extract the content of the log export and search for the attribute key inside the resource, scope and log attributes.
+The log structure of `ExportLogsServiceRequest` contains state which makes it necessary to convert the attribute value into a string before sending it over a channel.
+The usage of the channel makes the export non-blocking which is crucial for the gRPC call.
+The `-bufferSize <size>` CLI argument controls the channel buffer size.
+Increasing the buffer size allows for peaks in the number of messages to not block the gRPC call.
 
-Build the application:
-```shell
-go build ./...
-```
+Since the `processor.go` is only adding to a map, this should be faster than even the parsing of the logs inside `logs_service.go`.
+Thus multiple workers for `processor.go` would not increase throughput.
+Profiling could help prove this hypothesis.
+The `processor.go` avoids locking of the `logStats` map by avoiding concurrent access.
+By listening to the `ticker` and the `logIntake` in a single `select` statement, the `logStats` map is never read and written to simultaneously.
 
-Run the application:
-```shell
-go run ./...
-```
-
-Run tests
-```shell
-go test ./...
-```
-
-## References
-
-- [OpenTelemetry Logs](https://opentelemetry.io/docs/concepts/signals/logs/)
-- [OpenTelemetry Protocol (OTLP)](https://github.com/open-telemetry/opentelemetry-proto)
-- [OTLP Logs Examples](https://github.com/open-telemetry/opentelemetry-proto/blob/main/examples/logs.json)
+The `log_service.go` uses metrics counters to keep track of the different sources of attributes.
